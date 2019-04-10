@@ -1,0 +1,95 @@
+---
+title: "Copas del Mundo de Fútbol"
+author: "Elio Campitelli"
+output: github_document
+---
+
+
+Lo primero es leer los datos y cargar librerías. Voy a leer sólo los procesados, por ahora:
+
+```{r}
+library(data.table)
+library(magrittr)
+library(ggplot2)
+
+mundiales <- fread("https://raw.githubusercontent.com/cienciadedatos/datos-de-miercoles/master/datos/2019/2019-04-10/partidos.txt")
+```
+
+Veamos qué tenemos...
+
+```{r}
+str(mundiales)
+```
+
+Ok. Son resultados de cada partido de cada mundial entre `r min(mundiales$anio)` y `r max(mundiales$anio)`. ¿Por qué la columna `partido_orden` es un caracter tan feito? Lo voy a transformar en numérico. También voy a transformar `fecha` en Date. 
+
+```{r}
+limpiar_orden <- function(x) {
+  gsub("\\(", "", x) %>%     # Le saco el primer paréntesis
+    gsub("\\)", "", .) %>%   # Le saco el segundo paréntesis
+    as.numeric()             # Lo convierto en numérico
+}
+
+mundiales[, partido_orden := limpiar_orden(partido_orden)]
+mundiales[, fecha := lubridate::ymd(fecha)]
+```
+
+
+Me interesó eso de tener el órden del partido en el mundial. ¿Habrá algún cambio entre los primeros partidos y los últimos? Por ejemplo, ¿se hacen más goles?
+
+Primero, ¿cuántos goles hay en promedo? ¿Qué distribución tienen?
+
+```{r}
+goles <- mundiales[, .(promedio = mean(equipo_1_final + equipo_2_final),
+              varianza = sd(equipo_1_final + equipo_2_final))]
+knitr::kable(goles)
+```
+
+```{r}
+ggplot(mundiales, aes(equipo_1_final + equipo_2_final)) +
+  stat_function(fun = function(x) dpois(as.integer(x), goles$promedio), 
+                color = "steelblue") +
+  geom_density() 
+```
+
+Bueno, digamos que es bastante parecido a una distribución Poisson `r emo::ji("fish")`. Para ponerle un cacho más de rigurosidad podría hacer un test de Kolmogorov-Smirnov (`r emo::ji("cocktail")`), por ahora lo dejamos a ojo. 
+
+```{r}
+ggplot(mundiales, aes(partido_orden, equipo_1_final + equipo_2_final)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "glm", method.args = list(family = poisson))
+```
+
+Parece haber una *ligera* tendencia. Pero es mínima:
+
+```{r}
+copy(mundiales) %>% 
+  .[, goles := equipo_1_final + equipo_2_final] %>% 
+  glm(goles ~ partido_orden, data = ., family = poisson) -> fit_goles
+
+summary(fit_goles)
+```
+
+Los goles se incrementan en `r round(coef(fit_goles)[[2]], 3)` por partido jugado. Insignificante. 
+
+¿Y qué pasa con la diferencia de goles?
+
+```{r}
+ggplot(mundiales, aes(partido_orden, abs(equipo_1_final - equipo_2_final))) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "glm", method.args = list(family = poisson))
+```
+
+(Me fijé que la diferencia se aproxima a una Poisson --aunque algo peor que la suma)
+
+Si bien no hay una tendencia en la media, se ve que sí pasa algo con la variabilidad. En los primeros partidos hay más casos de goldeadas. Si definimos "goleada" como una diferencia de goles mayor o igual a 3 y agrupamos el orden de partidos de a 10 vemos este efecto. 
+
+```{r}
+copy(mundiales) %>% 
+  .[, goleada := abs(equipo_1_final - equipo_2_final) >= 3] %>% 
+  .[, .(goleada_frec = mean(goleada)), 
+    by = .(partido_orden = round(partido_orden, -1))] %>% 
+  ggplot(aes(partido_orden, goleada_frec)) +
+  geom_line()
+```
+
