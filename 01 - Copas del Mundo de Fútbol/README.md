@@ -232,7 +232,8 @@ goles_netos[ranking %between% c(1, 10) |
             family = "Roboto Condensed") +
   coord_flip() +
   scale_x_discrete("") +
-  scale_y_continuous("Ventaja de goles promedio", breaks = -6:2) +
+  scale_y_continuous("Ventaja de goles promedio", 
+                     breaks = metR::MakeBreaks(0.5)) +
   scale_fill_brewer(palette = "Set1", guide = "none")  +
   hrbrthemes::theme_ipsum_rc(grid = "X") +
   theme(axis.text.y = element_blank())
