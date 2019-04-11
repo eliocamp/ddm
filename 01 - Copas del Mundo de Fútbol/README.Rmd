@@ -1,0 +1,171 @@
+---
+title: "Copas del Mundo de Fútbol"
+author: "Elio Campitelli"
+output: github_document
+---
+
+Lo primero es leer los datos y cargar librerías. Voy a leer sólo los procesados, por ahora:
+
+```{r}
+library(data.table)
+library(magrittr)
+library(ggplot2)
+
+mundiales <- fread("https://raw.githubusercontent.com/cienciadedatos/datos-de-miercoles/master/datos/2019/2019-04-10/partidos.txt")
+```
+
+Veamos qué tenemos...
+
+```{r}
+str(mundiales)
+```
+
+Ok. Son resultados de cada partido de cada mundial entre `r min(mundiales$anio)` y `r max(mundiales$anio)`. ¿Por qué la columna `partido_orden` es un caracter tan feito? Lo voy a transformar en numérico. También voy a transformar `fecha` en Date. 
+
+```{r}
+limpiar_orden <- function(x) {
+  gsub("\\(", "", x) %>%     # Le saco el primer paréntesis
+    gsub("\\)", "", .) %>%   # Le saco el segundo paréntesis
+    as.numeric()             # Lo convierto en numérico
+}
+
+mundiales[, partido_orden := limpiar_orden(partido_orden)]
+mundiales[, fecha := lubridate::ymd(fecha)]
+```
+
+
+Me interesó eso de tener el órden del partido en el mundial. ¿Habrá algún cambio entre los primeros partidos y los últimos? Por ejemplo, ¿se hacen más goles?
+
+Primero, ¿cuántos goles hay en promedo? ¿Qué distribución tienen?
+
+```{r}
+goles <- mundiales[, .(promedio = mean(equipo_1_final + equipo_2_final),
+                       varianza = sd(equipo_1_final + equipo_2_final))]
+knitr::kable(goles)
+```
+
+```{r}
+ggplot(mundiales, aes(equipo_1_final + equipo_2_final)) +
+  stat_function(fun = function(x) dpois(as.integer(x), goles$promedio), 
+                color = "steelblue") +
+  geom_density() 
+```
+
+Bueno, digamos que es bastante parecido a una distribución Poisson `r emo::ji("fish")`. Para ponerle un cacho más de rigurosidad podría hacer un test de Kolmogorov-Smirnov (`r emo::ji("cocktail")`), por ahora lo dejamos a ojo. 
+
+Un problema es que no todos los mundiales tienen la misma cantidad de partidos. De hecho, la cantidad de partidos fue creciendo con el tiempo. Supongo que a medida que clasificaban más países (¿se nota que no sé cómo funciona el fútbol?) 
+
+```{r}
+mundiales[, max(partido_orden), by = anio] %>% 
+  ggplot(aes(anio, V1)) +
+  geom_col()
+```
+
+Entonces voy a normalizar el órden del partido de manera que el partido 0 va a ser el primerio y el 1, el último.  
+
+```{r}
+mundiales[, partido_posicion := (partido_orden - 1)/max(partido_orden - 1), 
+          by = anio]
+
+ggplot(mundiales, aes(partido_posicion, equipo_1_final + equipo_2_final)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "glm", method.args = list(family = poisson))
+```
+
+Hay una tendencia. Los partidos más cercanos a la final, tienen más goles. Podemos hacer el modelo lineal generaliado para formalizar el análisis. 
+
+```{r}
+mundiales %>% 
+  .[, goles := equipo_1_final + equipo_2_final] %>% 
+  glm(goles ~ partido_posicion, data = ., family = poisson) -> fit_goles
+
+summary(fit_goles)
+```
+
+Si bien el efecto parece ser significativo, su magnitud no es muy grande. Si interpreto bien estos coeficientes, el partido final tiene --en promedio-- `r round(coef(fit_goles)[[2]], 2)` más goles que el primero. 
+
+¿Y qué pasa con la diferencia de goles?
+
+```{r}
+ggplot(mundiales, aes(partido_posicion, abs(equipo_1_final - equipo_2_final))) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "glm", method.args = list(family = poisson))
+```
+
+(Me fijé que la diferencia se aproxima a una Poisson --aunque algo peor que la suma)
+
+Tampoco hay mucho efecto. Pero sí es interesante ver esos partidos con tanta diferencia. Algunos partidos con mucha diferencia de goles son estos:
+
+```{r}
+mundiales[, diferencia := abs(equipo_1_final - equipo_2_final)] %>% 
+  .[order(-diferencia)] %>% 
+  .[1:10] %>% 
+  .[, partido := paste0(equipo_1, " - ", equipo_2)] %>% 
+  .[, resultado := paste0(equipo_1_final, " - ", equipo_2_final)] %>% 
+  .[, .(anio, anfitrion, partido, resultado)]   %>% 
+  knitr::kable(col.names = c("Año", "Sede", "Partido", "Resultado"))
+```
+
+Quiero ver qué paises tienen el mejor y peor récord de goles. Para eso primero voy a calcular el resultado "neto" para cada país y reordenar los datos.
+
+```{r}
+# Este es un truquito intersante. Si querés usar el resultado de un pipe 
+# para crear varias variables y hacer cosas complicadas, podés usar llaves ({})
+# para capturar toda una expresión. 
+# Es altamente posible que haya alguna manera mejor de conseguir los datos en 
+# el formato que quiero...
+paises <- mundiales[, .(equipo_1, equipo_2, equipo_1_final, equipo_2_final)] %>%
+  .[, equipo_2_neto := equipo_2_final - equipo_1_final] %>% 
+  .[, equipo_1_neto := - equipo_2_neto] %>% 
+  .[, partido := 1:.N] %>% 
+  {
+    temp1 <- .[, .(partido, equipo_1, equipo_2)] %>% 
+      melt(id.var = c("partido"), variable.name = "id_equipo", value.name = "pais") %>% 
+      .[, id_equipo := as.numeric(factor(id_equipo))]
+    
+    temp2 <- .[, .(partido, equipo_1_neto, equipo_2_neto)] %>% 
+      melt(id.var = c("partido"), variable.name = "id_equipo", value.name = "goles") %>% 
+      .[, id_equipo := as.numeric(factor(id_equipo))]
+    
+    temp1[temp2, on = c("partido", "id_equipo")]
+  } %>% 
+  .[order(partido, id_equipo)]
+
+paises
+```
+
+Y con esto puedo calcular la suma total de goles metidos menos goles que le metieron a cada país en toda la historia de los mundiales. Como no todos los países estuvieron en todos los mundiales, probablemente sea inteligente calcular el promedio. Además, voy a filtar a paises que jugaron más de 10 partidos en total. 
+
+```{r}
+# Unamos las dos alemanias y digamos que la Unión Soviética 
+# fue siempre Rusia. Perdón Machin Lenin. 
+paises[pais == "Alemania occidental", pais := "Alemania"]
+paises[pais == "Unión Soviética", pais := "Rusia"]
+
+goles_netos <- paises[, .(goles_neto_promedio = mean(goles),
+                          goles_neto_suma = sum(goles),
+                          n = .N), by = pais] 
+goles_netos <- goles_netos[n >= 10]
+goles_netos[, ranking := frank(-goles_neto_promedio)]
+
+rango_max <- max(goles_netos$ranking)
+
+# Son una bocha, así que veamos los 10 mejores y los 10 peores
+goles_netos[ranking %between% c(1, 10) |
+            ranking %between% c(rango_max - 9, rango_max)] %>% 
+  ggplot(aes(reorder(pais, -ranking), goles_neto_promedio)) +
+  geom_col(aes(fill = factor(sign(goles_neto_promedio)))) +
+  geom_text(aes(label = pais, hjust = -sign(goles_neto_promedio)/2 + 1/2,
+                y = sign(goles_neto_promedio)*0.05),
+            size = 3.5,
+            family = "Roboto Condensed") +
+  coord_flip() +
+  scale_x_discrete("") +
+  scale_y_continuous("Ventaja de goles promedio", breaks = -6:2) +
+  scale_fill_brewer(palette = "Set1", guide = "none")  +
+  hrbrthemes::theme_ipsum_rc(grid = "X") +
+  theme(axis.text.y = element_blank())
+```
+
+Ahí lo tienen. Brasil en promedio gana por más de un gol mientras que Arabia Saudita pierde por casi dos goles. 
+
