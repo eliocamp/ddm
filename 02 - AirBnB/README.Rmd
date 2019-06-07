@@ -9,6 +9,7 @@ Voy a leer todos los datos y ponerlos en una sola tabla:
 ```{r}
 library(data.table)
 library(ggplot2)
+library(magrittr)
 
 buenos_aires <- fread("https://raw.githubusercontent.com/cienciadedatos/datos-de-miercoles/master/datos/2019/2019-06-05/buenos_aires.csv")
 cdmx <- fread("https://raw.githubusercontent.com/cienciadedatos/datos-de-miercoles/master/datos/2019/2019-06-05/cdmx.csv")
@@ -175,7 +176,8 @@ airbnb %>%
                                                                 rio = "Río de Janeiro"))) +
   metR:::theme_field() +
   labs(title = "Zonas caras (rojas) y baratas (azul) para alquilar en AirBnB",
-       subtitle = "Estimado teniendo encuenta tipo de alojamiento y número de huéspedes") 
+       subtitle = "Estimado teniendo encuenta tipo de alojamiento y número de huéspedes",
+       caption = "Codigo en https://git.io/fjzVi") 
   theme(aspect.ratio = 1)
 
 ```
