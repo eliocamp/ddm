@@ -1,4 +1,4 @@
-Copas del Mundo de Fútbol
+AirBnB
 ================
 Elio Campitelli
 
@@ -269,17 +269,7 @@ airbnb %>%
   metR:::theme_field() +
   labs(title = "Zonas caras (rojas) y baratas (azul) para alquilar en AirBnB",
        subtitle = "Estimado teniendo encuenta tipo de alojamiento y número de huéspedes",
-       caption = "Codigo en https://git.io/fjzVi") 
+       caption = "Código en https://git.io/fjzVi") 
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
-
-``` r
-  theme(aspect.ratio = 1)
-```
-
-    ## List of 1
-    ##  $ aspect.ratio: num 1
-    ##  - attr(*, "class")= chr [1:2] "theme" "gg"
-    ##  - attr(*, "complete")= logi FALSE
-    ##  - attr(*, "validate")= logi TRUE

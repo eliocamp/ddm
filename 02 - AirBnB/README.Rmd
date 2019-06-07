@@ -151,7 +151,7 @@ Esto hay que mejorarlo un poco porque hay bastante overplotting, pero surgen alg
 
 Lo que me gustaría hacer es "suavizar" los datos haciendo "promedios móviles geográficos". Como una proximación más o menos grosera (pero no tanto!), voy a dividir el área geográfica en hexágonos y calcular el promedio del precio residual para cada uno. Eso podría ser muy difícil de hacer sino fuera por el maravilloso `ggplot2::stat_summary_hex()`!
 
-```{r, fig.asp=1}
+```{r, fig.asp=1.2}
 labels_log_percent <- function(x) {
   scales::percent(10^x - 1)
 }
@@ -177,8 +177,6 @@ airbnb %>%
   metR:::theme_field() +
   labs(title = "Zonas caras (rojas) y baratas (azul) para alquilar en AirBnB",
        subtitle = "Estimado teniendo encuenta tipo de alojamiento y número de huéspedes",
-       caption = "Codigo en https://git.io/fjzVi") 
-  theme(aspect.ratio = 1)
-
+       caption = "Código en https://git.io/fjzVi") 
 ```
 
