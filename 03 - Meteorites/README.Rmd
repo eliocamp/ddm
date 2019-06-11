@@ -1,0 +1,120 @@
+---
+title: "Memteorites"
+author: "Elio Campitelli"
+output: github_document
+---
+
+First read the data:
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(magrittr)
+
+meteorites <- fread("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-06-11/meteorites.csv")
+```
+```{r}
+str(meteorites)
+```
+
+Ok. We've got some interesting data. I love having coordinates. I don't know exactly what "geolocation" is. It seems to be some sort of alternative coordinates. I wonder about the "class" column, though. How many class are there?
+
+```{r}
+uniqueN(meteorites$class)
+```
+
+
+Woah! That a lost of clases! How many meteors of each? (only looking at "valid" objects)
+
+```{r}
+meteorites[name_type == "Valid", .N, by = class] %>% 
+  .[, class := reorder(class, -N)] %>% 
+  .[1:20] %>% 
+  ggplot(aes(class, N)) +
+  geom_col()
+```
+
+VERY unbalanced. It seems that most meteorites are concentrated in those 6 categories. There's a long wikipedia article that I could read if I decided to analyse them. 
+
+I bet mass distribution is also very skewed. 
+
+```{r}
+meteorites %>% 
+  ggplot(aes(mass)) +
+  geom_histogram() +
+  scale_x_log10()
+```
+
+Yup. There are 131 missing values, also. Very few, so I'm not gonna worry about it just now. Although, how many complete cases do we have?
+
+```{r}
+mean(complete.cases(meteorites))
+```
+
+83% is not bad, but also not excellent. 
+
+What's the distribution with age?
+
+```{r}
+ggplot(meteorites, aes(year)) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(limits = c(NA, 2019))
+```
+
+Not surprisingly, most of them are registered in moder times, but there are also ancient records. But just a tiny amount:
+
+```{r}
+nrow(meteorites[year < 1800])
+```
+
+I also want to glance at the spatial distribution. 
+
+```{r}
+map <- geom_sf(data = rnaturalearth::ne_countries(returnclass = "sf"), 
+              inherit.aes = FALSE)
+
+ggplot(meteorites, aes(long, lat)) +
+  map +
+  geom_point() 
+```
+
+.... That one on the far right is nonsense. 
+
+```{r}
+meteorites[, long := metR::ConvertLongitude(long, from = 360)]
+
+
+ggplot(meteorites, aes(long, lat)) +
+  map + 
+  geom_point()
+```
+
+Much better. Althouth the distribution of falling meteorites is probably uniform, there's clearly a strong bias towards populated areas. 
+
+```{r}
+(g <- ggplot(meteorites, aes(long, lat)) +
+  map + 
+  geom_hex() )
+```
+
+Wowzer! Why are there so many of them found in ecuatorial Africa? I bet that's due to a concerned research effort and not accidental finds. If we split according to found vs fell meteorites...
+
+```{r}
+g +
+  facet_wrap(~fall)
+```
+
+Yup. the scale is not working here. I'll concentrate on the "fell" meteorites. 
+
+```{r}
+g %+% meteorites[fall == "Fell"]
+```
+
+
+```{r}
+ggplot(meteorites[is.finite(mass)], aes(long, lat)) +
+  map + 
+  stat_summary_hex(aes(z = mass), fun = sum, bins = 80) +
+  scale_fill_viridis_c()
+```
+
