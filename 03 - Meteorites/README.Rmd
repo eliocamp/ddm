@@ -12,6 +12,8 @@ library(ggplot2)
 library(magrittr)
 
 meteorites <- fread("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-06-11/meteorites.csv")
+
+thread <- spindler::thread$new(tag = "tw")
 ```
 ```{r}
 str(meteorites)
@@ -35,6 +37,14 @@ meteorites[name_type == "Valid", .N, by = class] %>%
 ```
 
 VERY unbalanced. It seems that most meteorites are concentrated in those 6 categories. There's a long wikipedia article that I could read if I decided to analyse them. 
+
+```{r}
+meteorites[name_type == "Valid", .N, by = class] %>% 
+  .[order(-N)] %>% 
+  .[1:6] %>% 
+  .[, unique(class)] -> most_classes
+```
+
 
 I bet mass distribution is also very skewed. 
 
@@ -71,7 +81,7 @@ I also want to glance at the spatial distribution.
 
 ```{r}
 map <- geom_sf(data = rnaturalearth::ne_countries(returnclass = "sf"), 
-              inherit.aes = FALSE)
+               inherit.aes = FALSE)
 
 ggplot(meteorites, aes(long, lat)) +
   map +
@@ -89,12 +99,12 @@ ggplot(meteorites, aes(long, lat)) +
   geom_point()
 ```
 
-Much better. Althouth the distribution of falling meteorites is probably uniform, there's clearly a strong bias towards populated areas. 
+Much better. Althouth the distribution of falling meteorites is probably uniform, there's clearly a strong bias towards populated areas. I'll aggregate to eliminate overplotting
 
 ```{r}
 (g <- ggplot(meteorites, aes(long, lat)) +
-  map + 
-  geom_hex() )
+   map + 
+   geom_hex() )
 ```
 
 Wowzer! Why are there so many of them found in ecuatorial Africa? I bet that's due to a concerned research effort and not accidental finds. If we split according to found vs fell meteorites...
@@ -104,17 +114,96 @@ g +
   facet_wrap(~fall)
 ```
 
-Yup. the scale is not working here. I'll concentrate on the "fell" meteorites. 
+Yup. the scale is not working here. I'll concentrate on the "fell" meteorites. Bur first, what do those categories mean? According to [this site](https://www.permanent.com/meteorites-falls-finds.html) "fell" meteorites are the ones that have been seen falling from the skies, while "found" meteorites are just found there on the ground. 
+
 
 ```{r}
 g %+% meteorites[fall == "Fell"]
 ```
 
+It's proabbly a big coincidence to see a meteorite and then find it on the ground so is not a surprise that those cases are concentrated in areas with many people. However, what's up with northern europe? 
+
+Ok. But that's only the number of meteorites, how about the total mass found in each place?
 
 ```{r}
 ggplot(meteorites[is.finite(mass)], aes(long, lat)) +
   map + 
-  stat_summary_hex(aes(z = mass), fun = sum, bins = 80) +
-  scale_fill_viridis_c()
+  stat_summary_hex(aes(z = mass), fun = sum, bins = 50) +
+  scale_fill_viridis_c(trans = scales::log10_trans())
+```
+
+North America has a greater density of "meteorite mass", apparently. Although it's improtant to note that here the equal size hexagons are probably not equal in area. But in any case, is not hard to believe that most finds would be located near the country in which most research is done. 
+
+Ok, up untill now it's been kind of still. Let's see some movement. First, has there been an overall tren in meteorite collection? Now, I've cheated and realised that there are some problems with the dates. 
+
+```{r}
+range(meteorites$year, na.rm = TRUE)
+```
+
+Huh.. so there are meteorites found in the future? That can't be right, let's try something else. 
+
+```{r}
+range(meteorites[year < 2050, year], na.rm = TRUE)
+```
+
+Now's more like it. The latest corect year is 2013. I can use that to filter out the bad ones. I will also concentrate on the modern(ish) period.  
+
+
+```{r}
+(g <- meteorites %>% 
+   .[year %between% c(1800, 2013)] %>% 
+   .[, .N, by = .(year, fall)] %>% 
+   ggplot(aes(year, N)) +
+   geom_line() +
+   scale_x_continuous(limits = c(NA, 2013), breaks = scales::pretty_breaks(10)) +
+   facet_wrap(~fall, scales = "free_y", ncol = 1) +
+   hrbrthemes::theme_ipsum_rc())
+```
+
+There are clear trends here. It looks like the anual number of "fell" meteorites had been steadily incrasing from the 1800's until it peaked around the 1940's. From that decade forward, it's been on a sofmore slump, or even slightlly decreasing. Why would that be? Maybe it has to do with the reduction of dark skies that makes it more difficult to actually see anything falling from the heavens. 
+
+The number of "found" meteorites has fluctuated widely. They only apper after the 60's, but they quickly overtake the "fell" ones by order of magnitude. However, there is a hint of a reduction after the 2000s. I want to take a closer look at the recent decades. 
+
+
+```{r}
+g +
+  scale_x_continuous(limits = c(1980, 2013)) 
+```
+
+Yep, it certrainly looks like a reduction, but those low values after 2010 look fishy to me. Maybe they didn't record them all before the data was released. In any case, I'm also curious about the spatial distribution of trends. 
+
+For that I will divide the globe in hexagons and aggregate the number of finds for each one and each year, and finally compute linear trends. The trends vary wildy, so I use a symmetric log transform on the colours. 
+
+```{r}
+hex_grid <- meteorites %>% 
+  .[fall == "Found"] %>% 
+  .[year %between% c(1980, 2010)] %>% 
+  with(., hexbin(long, lat, xbins = 15, IDs = TRUE))
+hex_grid_df <- as.data.table(hcell2xy(hex_grid)) %>% 
+  .[, id := hex_grid@cell]
+
+trends <- meteorites %>% 
+  .[fall == "Found"] %>% 
+  .[year %between% c(1980, 2010)] %>% 
+  .[, id := hex_grid@cID] %>% 
+  hex_grid_df[., on = "id"] %>% 
+
+
+  .[, .N, by = .(fall, x, y, year)] %>% 
+  # .[complete.cases(.)] %>% 
+  .[, metR::FitLm(N, year), by = .(fall, x, y)] %>% 
+  .[term == "year"] 
+
+C <- 1/log(10)
+
+trends %>% 
+  # .[fall == "Found"] %>%
+  .[complete.cases(.)] %>%
+  ggplot(aes(x, y)) +
+  map +
+  geom_point(aes(color = sign(estimate) * log10(1 + abs(estimate/C))), size = 4) +
+  metR::scale_color_divergent("Trends in meteorite finds\n 1980 to 2010 (symmetric log)",
+                              oob = scales::squish) +
+  metR:::theme_field() 
 ```
 
