@@ -22,6 +22,9 @@ dir <- stringi::stri_replace(dir, "%20", fixed = " ")
 url <- paste0("https://github.com/eliocamp/ddm/tree/master/", dir)
 
 thread <- spindler::thread$new(tag = "tw")
+thread$add_post("I'm a bit late for this week's #tidytuesday, but I wanted to give it a go anyway. Specially because I'm using it as an excuse to try spindler in the real world. So join me as we learn a (little) bit about meteorites! #rstats")$
+  add_post("So this week's data consists of about 50000 records of meteorites found on Earth. They've got names, mass, a classification, and long/lat coordinates, all divided by years. ")
+
 ```
 
 ```{r}
@@ -37,7 +40,7 @@ uniqueN(meteorites$class)
 
 Woah! That a lost of clases! How many meteors of each? (only looking at "valid" objects)
 
-```{r}
+```{r, tw = "Mi first though was to see what those 'classes' were. It turn out that even though there are more than 450 unique classes, the vast majority of meteorites belong to just 6 of them.}
 meteorites[name_type == "Valid", .N, by = class] %>% 
   .[, class := reorder(class, -N)] %>% 
   .[1:20] %>% 
@@ -46,6 +49,10 @@ meteorites[name_type == "Valid", .N, by = class] %>%
 ```
 
 VERY unbalanced. It seems that most meteorites are concentrated in those 6 categories. There's a long wikipedia article that I could read if I decided to analyse them. 
+
+```{r}
+thread$add_post("There's a long-ass wikipedia article on the subject (https://en.m.wikipedia.org/wiki/Meteorite_classification ), but as someone with zero geology training it's all meaningless to me. Lesson one: data withouth appropiate domain expertise is pretty much useless.")
+```
 
 ```{r}
 meteorites[name_type == "Valid", .N, by = class] %>% 
@@ -57,7 +64,7 @@ meteorites[name_type == "Valid", .N, by = class] %>%
 
 I bet mass distribution is also very skewed. 
 
-```{r}
+```{r, tw = "Another thing I wanted to look at was the mass distribution. As I expected, it's extremely skewed (see the log x axis). There are also (very few) missing values. "}
 meteorites %>% 
   ggplot(aes(mass)) +
   geom_histogram() +
@@ -99,7 +106,7 @@ ggplot(meteorites, aes(long, lat)) +
 
 .... That one on the far right is nonsense. 
 
-```{r}
+```{r, tw = "But what I'm most excited is the coordiantes of the find. It turns out that meteorites don't fall uniformly on earth? No! Of course they do, but people find meteorites and they are not uniformly distributed."}
 meteorites[, long := metR::ConvertLongitude(long, from = 360)]
 
 
@@ -107,6 +114,14 @@ ggplot(meteorites, aes(long, lat)) +
   map + 
   geom_point()
 ```
+
+```{r, tw = "But it's not only population density. Look at Antarctica! Finding a meteorite in a sea of white snow is really easy. Compare it "}
+ggplot(meteorites, aes(long, lat)) +
+  # map + 
+  geom_point() +
+  ggforce::geom_mark_ellipse(aes(filter = lat < -60))
+```
+
 
 Much better. Althouth the distribution of falling meteorites is probably uniform, there's clearly a strong bias towards populated areas. I'll aggregate to eliminate overplotting
 
