@@ -13,8 +13,17 @@ library(magrittr)
 
 meteorites <- fread("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-06-11/meteorites.csv")
 
+name <- knitr::current_input(dir = TRUE)
+name <- "/home/elio/Documents/ddm/03 - Meteorites/README.Rmd"
+name <- strsplit(name, "/", fixed = TRUE)[[1]]
+dir <- name[length(name) - 1]
+dir <- stringi::stri_replace(dir, "%20", fixed = " ")
+
+url <- paste0("https://github.com/eliocamp/ddm/tree/master/", dir)
+
 thread <- spindler::thread$new(tag = "tw")
 ```
+
 ```{r}
 str(meteorites)
 ```
@@ -116,6 +125,10 @@ g +
 
 Yup. the scale is not working here. I'll concentrate on the "fell" meteorites. Bur first, what do those categories mean? According to [this site](https://www.permanent.com/meteorites-falls-finds.html) "fell" meteorites are the ones that have been seen falling from the skies, while "found" meteorites are just found there on the ground. 
 
+```{r}
+thread$add_post(media = "falls_finds.png")
+```
+
 
 ```{r}
 g %+% meteorites[fall == "Fell"]
@@ -205,5 +218,12 @@ trends %>%
   metR::scale_color_divergent("Trends in meteorite finds\n 1980 to 2010 (symmetric log)",
                               oob = scales::squish) +
   metR:::theme_field() 
+```
+
+
+```{r}
+thread$add_post(paste0("Thread created with the spindler package: https://git.io/fjzxN \n",
+                       "It's source code can be found at ", url, "\n",
+                       "#rstats"))
 ```
 
