@@ -33,7 +33,7 @@ name <- knitr::current_input(dir = TRUE)
 name <- "/home/elio/Documents/ddm/03 - Meteorites/README.Rmd"
 name <- strsplit(name, "/", fixed = TRUE)[[1]]
 dir <- name[length(name) - 1]
-dir <- stringi::stri_replace(dir, "%20", fixed = " ")
+dir <- stringi::stri_replace_all(dir, "%20", fixed = " ")
 
 url <- paste0("https://github.com/eliocamp/ddm/tree/master/", dir)
 
@@ -312,7 +312,7 @@ C <- 1/log(10)
 (g <- trends %>% 
   .[fall == "Found"] %>%
   .[complete.cases(.)] %>%
-  .[y > -60] %>%
+  # .[y > -60] %>%
   ggplot(aes(x, y)) +
   map +
   geom_point(aes(fill = sign(estimate) * log10(1 + abs(estimate/C))), 
@@ -335,106 +335,32 @@ this_thread$add_post("Interestingly, it seems that there has ben an increse in n
   add_post("So this #tidytuesday data provided some in where meteorites are found, opened up the posibility that losing dark skies means less meteorite findings and gave a glimpse into geographic trends.")$
   add_post(paste0("Thread created with the spindler package: https://git.io/fjzxN \n",
                   "It's source code can be found at ", url, "\n",
-                  "#rstats"))
+                  "#rstats #tidytuesday"))
 ```
 
 ``` r
-print(this_thread)
+this_thread$publish()
 ```
 
-    ##  1: I'm a bit late for this week's #tidytuesday, but I wanted
-    ##     to give it a go anyway. Specially because I'm using it as
-    ##     an excuse to try the spindler package in the real world. So
-    ##     join me as we learn a (little) bit about meteorites!
-    ##     #rstats
-    ##     | 
-    ##  2: So this week's data consists of about 50000 records of
-    ##     meteorites found on Earth. They've got names, mass, a
-    ##     classification, and long/lat coordinates, all divided by
-    ##     year.
-    ##     | 
-    ##  3: My first though was to see what those 'classes' were. It
-    ##     turn out that even though there are more than 450 unique
-    ##     classes, the vast majority of meteorites belong to just 6
-    ##     of them
-    ##     /home/elio/Documents/ddm/03 - Meteorites/README_files/figure-gfm/unnamed-chunk-4-1.png
-    ##     | 
-    ##  4: There's a long-ass wikipedia article on the subject
-    ##     (https://en.m.wikipedia.org/wiki/Meteorite_classification
-    ##     ), but as someone with zero geology training it's all
-    ##     meaningless to me. Lesson one: data withouth appropiate
-    ##     domain expertise is pretty much useless.
-    ##     | 
-    ##  5: Another thing I wanted to look at was the mass
-    ##     distribution. As I expected, it's extremely skewed (see the
-    ##     log x axis). There are also (very few) missing values.
-    ##     /home/elio/Documents/ddm/03 - Meteorites/README_files/figure-gfm/unnamed-chunk-7-1.png
-    ##     | 
-    ##  6: But what I'm most excited is the coordiantes of the find.
-    ##     It turns out that meteorites don't fall uniformly on earth?
-    ##     No! Of course they do, but people find meteorites and they
-    ##     are not uniformly distributed.
-    ##     /home/elio/Documents/ddm/03 - Meteorites/README_files/figure-gfm/unnamed-chunk-12-1.png
-    ##     | 
-    ##  7: But it's not only population density. Look at Antarctica!
-    ##     Finding a meteorite in a sea of white snow is really easy.
-    ##     Specially compared to the Amazon rainforest, where thick
-    ##     vegetation, and water courses make it impossible.
-    ##     /home/elio/Documents/ddm/03 - Meteorites/README_files/figure-gfm/unnamed-chunk-13-1.png
-    ##     | 
-    ##  8: There are also a lot of badly coded coordinates (0, 0).
-    ##     Either that, or there were a lot of meteorites found on the
-    ##     middle of the Ocean, floating? in the water.
-    ##     /home/elio/Documents/ddm/03 - Meteorites/README_files/figure-gfm/unnamed-chunk-14-1.png
-    ##     | 
-    ##  9: Ok, let's see some movement. First, has there been an
-    ##     overall tren in meteorite findings? Seems like it. Both
-    ##     types of finds had been increasing steadily, but in the
-    ##     60's we started to "find" a lot of them!
-    ##     /home/elio/Documents/ddm/03 - Meteorites/README_files/figure-gfm/unnamed-chunk-16-1.png
-    ##     | 
-    ## 10: What do these categories mean, though? A little google lead
-    ##     me to this.
-    ##     /home/elio/Documents/ddm/03 - Meteorites/falls_finds.png
-    ##     | 
-    ## 11: Now looking at the ones actually followed from the sky to
-    ##     the ground, it looks like the rate of collection peaked in
-    ##     around the 30s. Why? If I had to guess, I'd say that it
-    ##     could be related to the lost of dark skies.
-    ##     /home/elio/Documents/ddm/03 - Meteorites/README_files/figure-gfm/unnamed-chunk-18-1.png
-    ##     | 
-    ## 12: Now I'm curious about the spacial distribution of these
-    ##     trends. It's a nice challenge. I need to count yearly finds
-    ##     that are near each other to get a representative time
-    ##     series to which to compute a trend.
-    ##     | 
-    ## 13: The "easy" way would be to lay out a regular grid, but I'm
-    ##     thinking I want a better option: Hexagon grid.
-    ##     | 
-    ## 14: I'll use the hexbin package to partition the data into
-    ##     hexagons, aggregate by year and then compute a trend. The
-    ##     result is..🤔... not that interesting.
-    ##     /home/elio/Documents/ddm/03 - Meteorites/README_files/figure-gfm/unnamed-chunk-20-1.png
-    ##     | 
-    ## 15: Antarctica has seen huge trends, most likely related to the
-    ##     increase in occupation there. But there seems to be an
-    ##     increase also in North Africa, central Australia and in the
-    ##     Atacama desert.
-    ##     /home/elio/Documents/ddm/03 - Meteorites/README_files/figure-gfm/unnamed-chunk-21-1.png
-    ##     | 
-    ## 16: Interestingly, it seems that there has ben an increse in
-    ##     north african dealers that sell meteorites to researchers!
-    ##     http://news.bbc.co.uk/2/hi/africa/6549197.stm
-    ##     | 
-    ## 17: So this #tidytuesday data provided some in where meteorites
-    ##     are found, opened up the posibility that losing dark skies
-    ##     means less meteorite findings and gave a glimpse into
-    ##     geographic trends.
-    ##     | 
-    ## 18: Thread created with the spindler package:
-    ##     https://git.io/fjzxN
-    ##     It's source code can be found at
-    ##     https://github.com/eliocamp/ddm/tree/master/03%20-
-    ##     Meteorites
-    ##     #rstats
-    ##     |
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+    ## your tweet has been posted!
+
+``` r
+saveRDS(this_thread, "~/thread.Rds")
+```

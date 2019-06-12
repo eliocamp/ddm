@@ -18,7 +18,7 @@ name <- knitr::current_input(dir = TRUE)
 name <- "/home/elio/Documents/ddm/03 - Meteorites/README.Rmd"
 name <- strsplit(name, "/", fixed = TRUE)[[1]]
 dir <- name[length(name) - 1]
-dir <- stringi::stri_replace(dir, "%20", fixed = " ")
+dir <- stringi::stri_replace_all(dir, "%20", fixed = " ")
 
 url <- paste0("https://github.com/eliocamp/ddm/tree/master/", dir)
 
@@ -224,7 +224,7 @@ C <- 1/log(10)
 (g <- trends %>% 
   .[fall == "Found"] %>%
   .[complete.cases(.)] %>%
-  .[y > -60] %>%
+  # .[y > -60] %>%
   ggplot(aes(x, y)) +
   map +
   geom_point(aes(fill = sign(estimate) * log10(1 + abs(estimate/C))), 
@@ -243,10 +243,12 @@ this_thread$add_post("Interestingly, it seems that there has ben an increse in n
   add_post("So this #tidytuesday data provided some in where meteorites are found, opened up the posibility that losing dark skies means less meteorite findings and gave a glimpse into geographic trends.")$
   add_post(paste0("Thread created with the spindler package: https://git.io/fjzxN \n",
                   "It's source code can be found at ", url, "\n",
-                  "#rstats"))
+                  "#rstats #tidytuesday"))
 ```
 
+
 ```{r}
-print(this_thread)
+this_thread$publish()
+saveRDS(this_thread, "~/thread.Rds")
 ```
 
