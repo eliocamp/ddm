@@ -24,7 +24,7 @@ url <- paste0("https://github.com/eliocamp/ddm/tree/master/", dir)
 library(spindler)
 this_thread <- thread$new(tag = "tw")$
   add_post(paste0("Hola, #DatosDeMiércoles. Esta semana vamos a brindarcon datos de reviews de vinos! ", emo::ji("wine"), "\n",
-                  "A penas vi los datos lo primero que quise hacer fue evaluar la consistencia de los puntajes de vino. Vamos si puedo! \n #rstats #rstatsES"))
+                  "A penas vi los datos lo primero que quise hacer fue evaluar la consistencia de los puntajes de vino. Veamos si puedo! \n #rstats #rstatsES"))
 ```
 
 Apenas leí que este Datos de Miércoles era sobre vinos, lo primero que quise evaluar es la consistencia en el puntaje de un mismo vino. Viendo los datos, resulta que no es tan fácil. Pero vamos a ver si puedo hacer algo. ¿Qué identifica a cada vino? Supongo que el nombre. Pero quizás hay más de una marca que le puso el mismo nombre? Hay que ver. 
@@ -51,7 +51,7 @@ vinos[, .N, by = .(nombre, vina, variedad)][order(-N)] %>%
 
 Ok, eso podría ser mejor. Veamos por ejemplo los datos de uno en particular
 ```{r}
-this_thread$add_post(paste0("Los nombre de las reseñas tienen el año en que se hizo y en la versión larga (que pueden encontrar acá: ", url, ") armé una función que usa expresiones regulares para extraerla, pero al final no lo usé", emo::ji("shrug")))
+this_thread$add_post(paste0("Los nombres de las reseñas tienen el año en que se hizo y en la versión larga (que pueden encontrar acá: ", url, ") armé una función que usa expresiones regulares para extraerla, pero al final no lo usé", emo::ji("shrug")))
 ```
 
 
@@ -150,7 +150,7 @@ vinos %>%
 
 🤨. Uff... no son demasiadas. Pero bueno, es lo que hay. 
 
-```{rm, tw = "Agarrando los vinos que tienen más de 10 reseñas, se puede ver que hay bastante variabilidad en los puntajes; los puntajes de algunso vinos tienen un rango de 10 puntos. Para comparar TODOS los vinos tienen puntaje entre 80 y 100."}
+```{r, tw = "Agarrando los vinos que tienen más de 10 reseñas, se puede ver que hay bastante variabilidad en los puntajes; los puntajes de algunso vinos tienen un rango de 10 puntos. Para comparar: TODOS los vinos tienen puntaje entre 80 y 100."}
 seleccion <- vinos %>% 
   .[, .(anio, puntos, cuantil = ecdf(puntos)(puntos), nombre, variedad, vina)] %>% 
   .[complete.cases(.)] %>% 
@@ -158,7 +158,6 @@ seleccion <- vinos %>%
   .[N > 10] %>% 
   .[, vino := as.numeric(interaction(nombre, variedad, vina))]
   
-
 copy(seleccion) %>% 
   .[, puntos_medio := mean(puntos), by = vino] %>% 
   .[, vino := reorder(vino, -puntos_medio)] %>% 
@@ -191,7 +190,7 @@ copy(seleccion) %>%
 ```
 
 ```{r}
-this_thread$add_post(paste0("Con estos #DatosDeMiércoles entonces aprendímos que, al menos para los vinos maś o menos buenos, los puntajes son muy poco importantes.\n El código fuente de este hilolo pueden ver encontrar en ", url, "). "))$
+this_thread$add_post(paste0("Con estos #DatosDeMiércoles entonces aprendímos que, al menos para los vinos maś o menos buenos, los puntajes son muy poco importantes.\n El código fuente de este hilolo pueden ver encontrar en ", url))$
   add_post("PD: Hice este thread directamente desde knitr con el paquete spindler: https://git.io/fjzxN \n #rstats #rstatsES")
 ```
 
@@ -200,6 +199,8 @@ this_thread$add_post(paste0("Con estos #DatosDeMiércoles entonces aprendímos q
 Al final no usé los años que tanto me costó conseguir (?), pero bueno. 
 
 ```{r}
-this_thread
+this_thread$publish()
+
+saveRDS(this_thread, "~/thread.Rds")
 ```
 
