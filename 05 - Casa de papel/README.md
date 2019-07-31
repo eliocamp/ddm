@@ -136,10 +136,10 @@ oracion <- function(primera_palabra, N = 3) {
 A ver, probemos.
 
 ``` r
-(hola <- oracion("hola", 7))
+(hola <- oracion("hola", 5))
 ```
 
-    ## [1] "hola denver no mencionó único que matar"
+    ## [1] "hola denver no mencionó único"
 
 🤷. Alguien que vio la serie me podrá decir si le parece algo que podrían
 decir.
@@ -148,7 +148,7 @@ decir.
 (en <- oracion("en", 5))
 ```
 
-    ## [1] "en esa esa particularidad está"
+    ## [1] "en caso de tomar algo"
 
 JAJAJAJAJAJAJAJAAAAAA\!\!\!\!\!\!
 
@@ -156,7 +156,7 @@ JAJAJAJAJAJAJAJAAAAAA\!\!\!\!\!\!
 (pero <- oracion("pero", 5))
 ```
 
-    ## [1] "pero jamás se quedó allí"
+    ## [1] "pero tú ponte las mujeres"
 
 ¿Hay aire acondicionado en el hospital?
 
@@ -167,7 +167,7 @@ Si somos ambiciosos con la longitud de la
 (ellos <- oracion("ellos", 20))
 ```
 
-    ## [1] "ellos van a regatear seis siete ocho rehenes dejarán el tocadiscos un jodido profesor y tengo que estos momentos he"
+    ## [1] "ellos van siguiendo allí y tu familia de corazones bueno me dijo alguien dispuesto un jodido profesor y tengo que"
 
 Mh… ya se vuelve poesía moderna.
 

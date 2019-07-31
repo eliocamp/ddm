@@ -111,7 +111,7 @@ oracion <- function(primera_palabra, N = 3) {
 A ver, probemos. 
 
 ```{r}
-(hola <- oracion("hola", 7))
+(hola <- oracion("hola", 5))
 ```
 
 
@@ -142,10 +142,10 @@ Mh... ya se vuelve poesía moderna.
 
 ```{r, include=FALSE}
 thread$add_post('Esta sería mi versión de "obligué a un bot a ver 1000 horas de La Casa de Papel"')$
-  add_post(paste0('Empezando con "hola":\n"', hola,  '"\n', emo::ji("shrug"), "Que mala onda este Denver, que no mencionó al único que había que matar."))$
-  add_post(paste0('"', pero, '"\n Suponog que el hospital tiene aire acondicionado...'))$
-  add_post(paste0('Las oraciones largas no son el furete de esta "AI":\n"', ellos, '"'))$
-  add_post(paste0('Pero algunos resultados son', emo::ji("100"), ':\n"', en, '"'))
+  add_post(paste0('Empezando con "hola":\n"', hola,  '"\n', emo::ji("shrug"), "¿Qué no mencionó Denver?"))$
+  add_post(paste0('"', pero, '"\n Supongo que el hospital tiene aire acondicionado...'))$
+  add_post(paste0('Las oraciones largas no son el fuerte de esta "AI":\n"', ellos, '"'))$
+  add_post(paste0('Pero algunos resultados son ', emo::ji("100"), ':\n"', en, '"'))
 ```
 
 
@@ -250,10 +250,8 @@ thread$add_post(paste0("\"", ella, "\"\n Parece que la gramática mejora un poco
   add_post(paste0("\"", es ,"\"\n"))$
   add_post(paste0("\"", cuando,"\"\n"))$
   add_post(paste0("\"", siempre,"\"\n"))$
-  
+  add_post("El código de todo esto está acá:\n https://github.com/eliocamp/ddm/tree/master/05%20-%20Casa%20de%20papel")$
   add_post("Bueno, en este #DatosDeMiercoles aprendimos que para protestar contra las rocas hay que mandar a los flancos, que hablar de la vida así no les va y que si hay banderas blancas está todo bien con Helsi. \n #Rstats #RstatsES")$
   add_watermark("es")
-  
-
 ```
 
