@@ -1,0 +1,259 @@
+---
+title: "Casa de papel"
+author: "Elio Campitelli"
+output: github_document
+---
+
+Primero leemos los datos
+
+```{r}
+library(data.table)
+library(magrittr)
+library(tidytext)
+
+cdp <- fread("https://raw.githubusercontent.com/cienciadedatos/datos-de-miercoles/master/datos/2019/2019-07-31/la_casa_de_papel.csv")
+
+# Creo un thread para twittear esto
+thread <- spindler::thread$new()
+
+thread$add_post("Hola, en este #DatosDeMiercoles la idea es jugar con los subtítulos de la serie 'La Casa de Papel'. Es la primera vez que trabajo con datos de texto, así que lo que sigue es un mamarracho horrendo. Pero divertido! #Rstats #RstatsES")$
+  add_post("Podría contar palabras, hacer análisis de sentimientos (algo que nunca me convenció; mucho menos en esppañol), pero para hacerlo más divertido, decidí crear un generador de fraces. Adelante!")
+```
+
+```{r}
+str(cdp)
+```
+
+Nunca trabajé con textos pero sí leí varios blogs al respecto. Se puede analizar frecuencia de palabras, o [logs odds ratios](https://juliasilge.com/blog/introducing-tidylo/). Hay mucho de análisis de sentimiento que nunca me convenció mucho, y menos en español. Así que ante mi total ignorancia sobre el tema, voy a hacer algo muy a lo bruto. Voy a tratar de construir un generador de "oraciones" a partir de estos datos. 
+
+El plan es calcular la probabilidad de que a una palabra le siga otra. Entonces a partir de una palabra inicial, seleccionar la siguiente palabra de forma aleatoria pero según la probabilidad observada. 
+
+```{r, include=FALSE}
+thread$add_post("Mi plan es estimar la frecuencia con la que una palabra le sigue a la otra y así armar un 'diccionario predictivo' en base a este corpus", 
+                media = "~/Pictures/Screenshots/20190731-screenshot.png")
+```
+
+Primero lo de siempre: "tokenizar" el texto. 
+
+```{r}
+palabras <- cdp %>% 
+  unnest_tokens(palabra, texto) %>% 
+  # unnest_tokens(palabra, texto) %>% 
+  as.data.table() 
+head(palabras)
+```
+
+Y ahora calculo la frecuencia. 
+
+```{r}
+frecuencias <- palabras %>%
+  .[, palabra_sig := shift(palabra, type = "lead"), 
+    by = .(ID_epi, episodio, temporada)] %>%   # agrego una columna para la palabra siguiente.
+  na.omit() %>% 
+  .[, n_palabra := .N, by = .(palabra)] %>%               # número de veces que aparece la palabra (para normalizar)
+  .[, .(n_palabra_sig = .N, n_palabra = n_palabra[1]), by = .(palabra, palabra_sig)] %>% 
+  .[, prob := n_palabra_sig/n_palabra] %>%                
+  .[n_palabra > 5] %>%                                    # me quedo con las palabras que aparecen más de 5 veces
+  .[order(-prob)]
+
+head(frecuencias)
+```
+
+Se ve que hay algunos 2-gramas (pares de palabras) que aparecen siempre juntos. A la palabra "tono" **siempre** le sigue la palabra "de". Es razonable. Cabe aclarar que esto está hecho muy a lo bruto. 
+
+Ahora me hago una función que elije la palabra siguiente a partir de la palabra anterior. 
+
+```{r, include=FALSE}
+thread$add_post("Ahora me hago una función que elije la palabra siguiente a partir de la palabra anterior. ",
+                media = "~/Pictures/Screenshots/20190731-screenshot_1.png")
+```
+
+
+```{r}
+palabra_siguiente <- function(palabra_anterior) {
+  # Si la palabra está entre las palabras observadas
+  if (palabra_anterior %in% frecuencias$palabra) {
+    palabra_siguiente <- frecuencias[palabra == palabra_anterior] %>% 
+      .[, sample(palabra_sig, size = 1, prob = prob)]     # Samplea 1 palabra sigiente usando la probabilidad calculada arriba
+  } else {
+    # Si la palabra no aparece...
+    palabra_siguiente <- frecuencias %>% 
+      .[, sample(palabra, 1)]          # Elegir cualquiera aleatoriametne pero según su frecuencia. 
+  }
+  
+  return(palabra_siguiente)
+}
+```
+
+Probemos. (Seteo la semilla para que sea reproducible.)
+
+```{r}
+set.seed(42)
+palabra_siguiente("hola")
+```
+
+Mh.. una mala jugada del azar!
+
+Ahora lo único que hay que hacer es iterar. Voy a armarme una función que genere una oración de `N` palabras. 
+
+
+```{r}
+oracion <- function(primera_palabra, N = 3) {
+  oracion <- vector(mode = "character", length = N)
+  oracion[1] <- primera_palabra
+  for (p in seq_len(N)[-1]) {
+    oracion[p] <- palabra_siguiente(oracion[p-1])
+  }
+  return(paste0(oracion, collapse = " "))
+}
+```
+
+A ver, probemos. 
+
+```{r}
+(hola <- oracion("hola", 7))
+```
+
+
+`r emo::ji("shrug")`. Alguien que vio la serie me podrá decir si le parece algo que podrían decir. 
+
+
+```{r}
+(en <- oracion("en", 5))
+```
+
+JAJAJAJAJAJAJAJAAAAAA!!!!!!
+
+```{r}
+(pero <- oracion("pero", 5))
+```
+
+¿Hay aire acondicionado en el hospital?
+
+Si somos ambiciosos con la longitud de la oración:
+
+```{r}
+(ellos <- oracion("ellos", 20))
+```
+
+Mh... ya se vuelve poesía moderna. 
+
+
+
+```{r, include=FALSE}
+thread$add_post('Esta sería mi versión de "obligué a un bot a ver 1000 horas de La Casa de Papel"')$
+  add_post(paste0('Empezando con "hola":\n"', hola,  '"\n', emo::ji("shrug"), "Que mala onda este Denver, que no mencionó al único que había que matar."))$
+  add_post(paste0('"', pero, '"\n Suponog que el hospital tiene aire acondicionado...'))$
+  add_post(paste0('Las oraciones largas no son el furete de esta "AI":\n"', ellos, '"'))$
+  add_post(paste0('Pero algunos resultados son', emo::ji("100"), ':\n"', en, '"'))
+```
+
+
+Elegir palabras así tiene el problema de que da muchas cosas sin sentido. Una forma de "arreglarlo" podria ser considerar ngrams más largos. En el caso anterior esencialmente estaba seleccionando a partir de los pares de palabras más probables. ¿Qué pasa si en vez de 2, uso 3?
+
+Parecido a lo anterior, divido en series de 3 palabras y me fijo la frecuencia de 3-gram para cada palabra con la que comienza. 
+
+```{r}
+palabra_n <- function(texto, n) {
+  vapply(strsplit(texto, " "), function(x) {
+    if (n[1] == "ultima") {
+      x[length(x)]
+    } else {
+      paste0(x[n], collapse = " ")
+    }
+  } , "a")
+}
+
+freq_ngrams <- cdp %>% 
+  .[, unnest_tokens(.SD, ngram, texto, token = "ngrams", n = 3), by = .(ID_epi, temporada, episodio)] %>% 
+  na.omit() %>% 
+  .[, primera_palabra := palabra_n(ngram, 1)] %>% 
+  .[, .(n_ngram = .N), by = .(ngram, primera_palabra)] 
+
+freq_ngrams[primera_palabra == "yo"] %>% 
+  .[order(-n_ngram)]
+```
+
+Ahí tenemos que, por ejemplo, si empezamos con la palabra "yo", lo más apropiado sería continuar con "creo que". Entonces armemos algo parecido. En este caso, si no encuentra la palabra con la empieza, directamente termina la oración (esto no es ideal, pero en fin). Además, estoy tokenizando dentro de cada ID de subtítulo para que no se mezclen las líneas de diálogo. 
+```{r, include = FALSE}
+thread$add_post("Ok, esto no es muy bueno. ¿Qué pasa si en vez de tomar pares de palabras voy rellenando de a 3 palabras?")
+
+```
+
+
+```{r}
+ngram <- function(primera_palabra) {
+  primera_palabra_in <- primera_palabra
+  
+  # Si la palabra está entre las palabras observadas
+  if (primera_palabra_in %in% freq_ngrams$primera_palabra) {
+    ngram <- freq_ngrams[primera_palabra == primera_palabra_in] %>% 
+      .[, sample(ngram, 1, prob = n_ngram)]
+  } else {
+    # Si la freq_ngrams no aparece...
+    ngram <- ""
+  }
+  return(ngram)
+}
+
+
+oracion_ngram <- function(primera_palabra, N = 3) {
+  oracion <- vector(mode = "list")
+  oracion[[1]] <- primera_palabra
+  
+  for (n in seq_len(N)+1) {
+    prox_ngram <- ngram(primera_palabra)
+    
+    if (prox_ngram != "") {
+      oracion[[n]] <- palabra_n(prox_ngram, 2:3)
+    } else {
+      break
+    }
+    
+    primera_palabra <- palabra_n(prox_ngram, "ultima")
+  }
+  return(paste0(oracion, collapse = " "))
+}
+
+```
+
+Probemos nuestra nueva Casa de Papel, entonces. 
+
+```{r}
+set.seed(42)
+(ella <- oracion_ngram("ella", 6))
+```
+
+Ok, parece que la gramática mejoró un poco, pero tampoco tiene demasiado sentido.
+
+```{r}
+(es <- oracion_ngram("es", 7))
+```
+
+Mhh.. no. 
+
+```{r}
+(cuando <- oracion_ngram("cuándo", 4))
+```
+
+Volento, pero al menos es una oración con sentido!
+```{r}
+(siempre <- oracion_ngram("siempre", 6))
+```
+
+
+No mejoró mucho. Creo que el problema es que al usar 3-grams lo que en realidad tengo que hacer es predecir la tercer palabra a partir de las 2 anteriores. El problema es que rápidamente me quedo sin combinaciones observadas! 
+
+
+```{r, include = FALSE}
+thread$add_post(paste0("\"", ella, "\"\n Parece que la gramática mejora un poco, pero sigue siendo un completo sinsentido."))$
+  add_post(paste0("\"", es ,"\"\n"))$
+  add_post(paste0("\"", cuando,"\"\n"))$
+  add_post(paste0("\"", siempre,"\"\n"))$
+  
+  add_post("Bueno, en este #DatosDeMiercoles aprendimos que para protestar contra las rocas hay que mandar a los flancos, que hablar de la vida así no les va y que si hay banderas blancas está todo bien con Helsi. \n #Rstats #RstatsES")$
+  add_watermark("es")
+  
+
+```
+
