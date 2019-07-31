@@ -6,18 +6,7 @@ Primero leemos los datos
 
 ``` r
 library(data.table)
-library(ggplot2)
 library(magrittr)
-library(hrbrthemes)
-```
-
-    ## NOTE: Either Arial Narrow or Roboto Condensed fonts are required to use these themes.
-
-    ##       Please use hrbrthemes::import_roboto_condensed() to install Roboto Condensed and
-
-    ##       if Arial Narrow is not on your system, please see http://bit.ly/arialnarrow
-
-``` r
 library(tidytext)
 
 cdp <- fread("https://raw.githubusercontent.com/cienciadedatos/datos-de-miercoles/master/datos/2019/2019-07-31/la_casa_de_papel.csv")
@@ -58,7 +47,9 @@ Primero lo de siempre: “tokenizar” el texto.
 
 ``` r
 palabras <- cdp %>% 
-  unnest_tokens(palabra, texto)
+  unnest_tokens(palabra, texto) %>% 
+  # unnest_tokens(palabra, texto) %>% 
+  as.data.table() 
 head(palabras)
 ```
 
@@ -74,43 +65,29 @@ Y ahora calculo la frecuencia.
 
 ``` r
 frecuencias <- palabras %>%
-  .[, palabra_sig := shift(palabra, type = "lead")] %>%   # agrego una columna para la palabra siguiente.
+  .[, palabra_sig := shift(palabra, type = "lead"), 
+    by = .(ID_epi, episodio, temporada)] %>%   # agrego una columna para la palabra siguiente.
+  na.omit() %>% 
   .[, n_palabra := .N, by = .(palabra)] %>%               # número de veces que aparece la palabra (para normalizar)
   .[, .(n_palabra_sig = .N, n_palabra = n_palabra[1]), by = .(palabra, palabra_sig)] %>% 
   .[, prob := n_palabra_sig/n_palabra] %>%                
   .[n_palabra > 5] %>%                                    # me quedo con las palabras que aparecen más de 5 veces
   .[order(-prob)]
-```
 
-    ## Warning in `[.data.table`(., , `:=`(palabra_sig, shift(palabra, type
-    ## = "lead"))): Invalid .internal.selfref detected and fixed by taking a
-    ## (shallow) copy of the data.table so that := can add this new column by
-    ## reference. At an earlier point, this data.table has been copied by R (or
-    ## was created manually using structure() or similar). Avoid names<- and
-    ## attr<- which in R currently (and oddly) may copy the whole data.table. Use
-    ## set* syntax instead to avoid copying: ?set, ?setnames and ?setattr. If this
-    ## message doesn't help, please report your use case to the data.table issue
-    ## tracker so the root cause can be fixed or this message improved.
-
-``` r
 head(frecuencias)
 ```
 
     ##    palabra palabra_sig n_palabra_sig n_palabra prob
     ## 1:    tono          de            24        24    1
-    ## 2: aseguro         que             7         7    1
-    ## 3:   creía         que            12        12    1
-    ## 4: remedio         que             7         7    1
-    ## 5:  partir          de             6         6    1
-    ## 6:   acabo          de             6         6    1
+    ## 2: opinión     pública             8         8    1
+    ## 3: aseguro         que             7         7    1
+    ## 4:   creía         que            11        11    1
+    ## 5: remedio         que             7         7    1
+    ## 6:  partir          de             6         6    1
 
 Se ve que hay algunos 2-gramas (pares de palabras) que aparecen siempre
 juntos. A la palabra “tono” **siempre** le sigue la palabra “de”. Es
-razonable. Cabe aclarar que esto está hecho muy a lo bruto. La “palabra
-siguiente” incluye palabras de un capítulo a otro (la última palabra de
-un capítulo y la primera del siguiente) y entre distintos diálogos.
-También incluye descripciones como el “(HOMBRE) ¡Quieto o disparo\!” o
-“(DISPARO)”. De nuevo, ya sabemos que esto es una porquería\!
+razonable. Cabe aclarar que esto está hecho muy a lo bruto.
 
 Ahora me hago una función que elije la palabra siguiente a partir de la
 palabra anterior.
@@ -138,9 +115,9 @@ set.seed(42)
 palabra_siguiente("hola")
 ```
 
-    ## [1] "amigos"
+    ## [1] "hola"
 
-“Hola, amigos\!”. Perfecto.
+Mh.. una mala jugada del azar\!
 
 Ahora lo único que hay que hacer es iterar. Voy a armarme una función
 que genere una oración de `N` palabras.
@@ -159,10 +136,10 @@ oracion <- function(primera_palabra, N = 3) {
 A ver, probemos.
 
 ``` r
-(hola <- oracion("hola", 5))
+(hola <- oracion("hola", 7))
 ```
 
-    ## [1] "hola y me pillaron que"
+    ## [1] "hola denver no mencionó único que matar"
 
 🤷. Alguien que vio la serie me podrá decir si le parece algo que podrían
 decir.
@@ -171,25 +148,26 @@ decir.
 (en <- oracion("en", 5))
 ```
 
-    ## [1] "en el colegio de salir"
+    ## [1] "en esa esa particularidad está"
 
-Sí, no te preocupes, en 3 minutos pasa\!
+JAJAJAJAJAJAJAJAAAAAA\!\!\!\!\!\!
 
 ``` r
-(ella <- oracion("ella", 10))
+(pero <- oracion("pero", 5))
 ```
 
-    ## [1] "ella las saunas el puerto don mario atraco lo he"
+    ## [1] "pero jamás se quedó allí"
 
-Dale, Helsi, quedate acá que está todo tranquilo y mañana ponemos
-banderas blancas en las
-    paredes.
+¿Hay aire acondicionado en el hospital?
+
+Si somos ambiciosos con la longitud de la
+    oración:
 
 ``` r
 (ellos <- oracion("ellos", 20))
 ```
 
-    ## [1] "ellos los rusos muy gracioso veo gordo el fuego baja el sudeste estoy viendo antoñanzas antoñanzas lo cual nos están"
+    ## [1] "ellos van a regatear seis siete ocho rehenes dejarán el tocadiscos un jodido profesor y tengo que estos momentos he"
 
 Mh… ya se vuelve poesía moderna.
 
@@ -281,7 +259,7 @@ Probemos nuestra nueva Casa de Papel, entonces.
 
 ``` r
 set.seed(42)
-oracion_ngram("ella", 6)
+(ella <- oracion_ngram("ella", 6))
 ```
 
     ## [1] "ella disparó primero tenemos que te gusta vivir no eras rehén ya no"
@@ -290,20 +268,27 @@ Ok, parece que la gramática mejoró un poco, pero tampoco tiene demasiado
 sentido.
 
 ``` r
-oracion_ngram("es", 6)
+(es <- oracion_ngram("es", 7))
 ```
 
-    ## [1] "es así manda a los flancos para hacer un vaso de protesta contra"
+    ## [1] "es así manda a los flancos para hacer un vaso de protesta contra las rocas"
 
 Mhh.. no.
 
 ``` r
-oracion_ngram("cuándo", 5)
+(cuando <- oracion_ngram("cuándo", 4))
 ```
 
-    ## [1] "cuándo has tenido que matar a una zorra egoísta y obsesiva"
+    ## [1] "cuándo van a parecer una zorra egoísta y obsesiva"
 
-Volento, pero al menos es una oración con sentido\!
+Volento, pero al menos es una oración con
+    sentido\!
+
+``` r
+(siempre <- oracion_ngram("siempre", 6))
+```
+
+    ## [1] "siempre y cuando estamos a hablarme así de la vida no les va"
 
 No mejoró mucho. Creo que el problema es que al usar 3-grams lo que en
 realidad tengo que hacer es predecir la tercer palabra a partir de las 2
